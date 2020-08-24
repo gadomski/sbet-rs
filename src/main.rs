@@ -17,10 +17,12 @@ fn main() -> Result<(), Error> {
     let reader = Reader::from_path(input)?;
 
     if let Some(_) = matches.subcommand_matches("to-csv") {
+        println!("time,latitude,longitude");
         for point in reader {
             let point = point?;
             println!(
-                "{},{}",
+                "{},{},{}",
+                point.time,
                 point.latitude.to_degrees(),
                 point.longitude.to_degrees()
             );
