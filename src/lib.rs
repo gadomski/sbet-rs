@@ -4,6 +4,8 @@ use std::path::Path;
 
 use anyhow::Error;
 
+pub const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
+
 /// Smoothed Best Estimate of Trajectory (SBET) point.
 pub struct Point {
     pub time: f64,
