@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate anyhow;
+
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -7,6 +10,26 @@ use anyhow::Error;
 pub const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
 
 pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
+    if points.is_empty() {
+        return Err(anyhow!("no points"));
+    }
+    if points.len() == 1 {
+        return Err(anyhow!("only one point"));
+    }
+    if points[0].time > time {
+        return Err(anyhow!(
+            "extrapolation: {} is before first point time of {}",
+            time,
+            points[0].time
+        ));
+    }
+    if points.last().unwrap().time < time {
+        return Err(anyhow!(
+            "extrapolation: {} is after last point time of {}",
+            time,
+            points.last().unwrap().time
+        ));
+    }
     for (before, after) in points.iter().zip(points.iter().skip(1)) {
         if before.time <= time && after.time >= time {
             let factor = (time - before.time) / (after.time - before.time);
@@ -38,11 +61,11 @@ pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
             });
         }
     }
-    unimplemented!()
+    unreachable!()
 }
 
 /// Smoothed Best Estimate of Trajectory (SBET) point.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Point {
     pub time: f64,
     pub latitude: f64,
@@ -199,5 +222,25 @@ mod tests {
             }
         );
         Ok(())
+    }
+
+    #[test]
+    fn interpolate_errors() {
+        assert!(super::interpolate(&[], 0.).is_err());
+        assert!(super::interpolate(&[Default::default()], 0.).is_err());
+        let first = Point {
+            time: 1.0,
+            ..Default::default()
+        };
+        let second = Point {
+            time: 2.0,
+            ..Default::default()
+        };
+        let points = [first, second];
+        assert!(super::interpolate(&points, 0.).is_err());
+        assert!(super::interpolate(&points, 0.9).is_err());
+        assert!(super::interpolate(&points, 1.).is_ok());
+        assert!(super::interpolate(&points, 2.).is_ok());
+        assert!(super::interpolate(&points, 2.1).is_err());
     }
 }
