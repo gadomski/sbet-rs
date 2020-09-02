@@ -6,7 +6,43 @@ use anyhow::Error;
 
 pub const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
 
+pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
+    for (before, after) in points.iter().zip(points.iter().skip(1)) {
+        if before.time <= time && after.time >= time {
+            let factor = (time - before.time) / (after.time - before.time);
+            return Ok(Point {
+                time: time,
+                latitude: before.latitude + factor * (after.latitude - before.latitude),
+                longitude: before.longitude + factor * (after.longitude - before.longitude),
+                altitude: before.altitude + factor * (after.altitude - before.altitude),
+                x_velocity: before.x_velocity + factor * (after.x_velocity - before.x_velocity),
+                y_velocity: before.y_velocity + factor * (after.y_velocity - before.y_velocity),
+                z_velocity: before.z_velocity + factor * (after.z_velocity - before.z_velocity),
+                roll: before.roll + factor * (after.roll - before.roll),
+                pitch: before.pitch + factor * (after.pitch - before.pitch),
+                yaw: before.yaw + factor * (after.yaw - before.yaw),
+                wander_angle: before.wander_angle
+                    + factor * (after.wander_angle - before.wander_angle),
+                x_acceleration: before.x_acceleration
+                    + factor * (after.x_acceleration - before.x_acceleration),
+                y_acceleration: before.y_acceleration
+                    + factor * (after.y_acceleration - before.y_acceleration),
+                z_acceleration: before.z_acceleration
+                    + factor * (after.z_acceleration - before.z_acceleration),
+                x_angular_rate: before.x_angular_rate
+                    + factor * (after.x_angular_rate - before.x_angular_rate),
+                y_angular_rate: before.y_angular_rate
+                    + factor * (after.y_angular_rate - before.y_angular_rate),
+                z_angular_rate: before.z_angular_rate
+                    + factor * (after.z_angular_rate - before.z_angular_rate),
+            });
+        }
+    }
+    unimplemented!()
+}
+
 /// Smoothed Best Estimate of Trajectory (SBET) point.
+#[derive(Debug, PartialEq)]
 pub struct Point {
     pub time: f64,
     pub latitude: f64,
@@ -96,6 +132,72 @@ mod tests {
         let reader = Reader::from_path("data/2-points.sbet")?;
         let points = reader.collect::<Vec<Result<Point, Error>>>();
         assert_eq!(2, points.len());
+        Ok(())
+    }
+
+    #[test]
+    fn interpolate() -> Result<(), Error> {
+        let first = Point {
+            time: 1.,
+            latitude: 1.,
+            longitude: 1.,
+            altitude: 1.,
+            x_velocity: 1.,
+            y_velocity: 1.,
+            z_velocity: 1.,
+            roll: 1.,
+            pitch: 1.,
+            yaw: 1.,
+            wander_angle: 1.,
+            x_acceleration: 1.,
+            y_acceleration: 1.,
+            z_acceleration: 1.,
+            x_angular_rate: 1.,
+            y_angular_rate: 1.,
+            z_angular_rate: 1.,
+        };
+        let second = Point {
+            time: 2.,
+            latitude: 2.,
+            longitude: 2.,
+            altitude: 2.,
+            x_velocity: 2.,
+            y_velocity: 2.,
+            z_velocity: 2.,
+            roll: 2.,
+            pitch: 2.,
+            yaw: 2.,
+            wander_angle: 2.,
+            x_acceleration: 2.,
+            y_acceleration: 2.,
+            z_acceleration: 2.,
+            x_angular_rate: 2.,
+            y_angular_rate: 2.,
+            z_angular_rate: 2.,
+        };
+        let interpolated = super::interpolate(&[first, second], 1.5)?;
+        assert_eq!(
+            interpolated,
+            Point {
+                time: 1.5,
+                latitude: 1.5,
+                longitude: 1.5,
+                altitude: 1.5,
+                x_velocity: 1.5,
+                y_velocity: 1.5,
+                z_velocity: 1.5,
+                roll: 1.5,
+                pitch: 1.5,
+                yaw: 1.5,
+                wander_angle: 1.5,
+                x_acceleration: 1.5,
+                y_acceleration: 1.5,
+                z_acceleration: 1.5,
+                x_angular_rate: 1.5,
+                y_angular_rate: 1.5,
+                z_angular_rate: 1.5,
+            }
+        );
         Ok(())
     }
 }
