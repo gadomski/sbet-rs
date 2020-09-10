@@ -4,27 +4,43 @@ use sbet::Reader;
 
 fn main() -> Result<(), Error> {
     let matches = App::new("sbet")
-        .arg(
-            Arg::with_name("INPUT")
-                .help("Sets the input file to use")
-                .required(true)
-                .index(1),
+        .subcommand(
+            SubCommand::with_name("to-csv")
+                .about("converts sbet to csv")
+                .arg(
+                    Arg::with_name("INPUT")
+                        .help("Sets the input file to use")
+                        .required(true)
+                        .index(1),
+                )
+                .arg(
+                    Arg::with_name("decimate")
+                        .short("d")
+                        .long("decimate")
+                        .takes_value(true),
+                ),
         )
-        .subcommand(SubCommand::with_name("to-csv").about("converts sbet to csv"))
         .get_matches();
 
-    let input = matches.value_of("INPUT").unwrap();
-    let reader = Reader::from_path(input)?;
-
-    if let Some(_) = matches.subcommand_matches("to-csv") {
-        println!("time,latitude,longitude");
-        for point in reader {
+    if let Some(matches) = matches.subcommand_matches("to-csv") {
+        let input = matches.value_of("INPUT").unwrap();
+        let decimate = matches
+            .value_of("decimate")
+            .unwrap_or("1")
+            .parse::<usize>()
+            .unwrap();
+        let reader = Reader::from_path(input)?;
+        println!("time,latitude,longitude,roll,pitch,yaw");
+        for point in reader.step_by(decimate) {
             let point = point?;
             println!(
-                "{},{},{}",
+                "{},{},{},{},{},{}",
                 point.time,
                 point.latitude.to_degrees(),
-                point.longitude.to_degrees()
+                point.longitude.to_degrees(),
+                point.roll,
+                point.pitch,
+                point.yaw
             );
         }
     }

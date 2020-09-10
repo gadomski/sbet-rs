@@ -65,7 +65,7 @@ pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
 }
 
 /// Smoothed Best Estimate of Trajectory (SBET) point.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Point {
     pub time: f64,
     pub latitude: f64,
