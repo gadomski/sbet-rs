@@ -7,7 +7,12 @@ use std::path::Path;
 
 use anyhow::Error;
 
-pub const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
+const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
+
+pub fn estimate_number_of_points<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
+    let metadata = std::fs::metadata(path)?;
+    Ok(metadata.len() / SIZE_OF_SBET_POINT_IN_BYTES)
+}
 
 pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
     if points.is_empty() {
