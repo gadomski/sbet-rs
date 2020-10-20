@@ -2,7 +2,7 @@
 extern crate anyhow;
 
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 use anyhow::Error;
@@ -94,6 +94,9 @@ pub struct Point {
 /// Use this structure to read sbet data from a source.
 pub struct Reader<R: Read>(R);
 
+/// Use this structure to write sbet data to a sink.
+pub struct Writer<W: Write>(W);
+
 impl<R: Read> Reader<R> {
     /// Reads one point from the reader.
     pub fn read_one(&mut self) -> Result<Option<Point>, Error> {
@@ -148,6 +151,40 @@ impl<R: Read> Iterator for Reader<R> {
             },
             Err(err) => Some(Err(err)),
         }
+    }
+}
+
+impl<W: Write> Writer<W> {
+    /// Writes one point to the writer.
+    pub fn write_one(&mut self, point: Point) -> Result<(), Error> {
+        use byteorder::{LittleEndian, WriteBytesExt};
+        self.0.write_f64::<LittleEndian>(point.time)?;
+        self.0.write_f64::<LittleEndian>(point.latitude)?;
+        self.0.write_f64::<LittleEndian>(point.longitude)?;
+        self.0.write_f64::<LittleEndian>(point.altitude)?;
+        self.0.write_f64::<LittleEndian>(point.x_velocity)?;
+        self.0.write_f64::<LittleEndian>(point.y_velocity)?;
+        self.0.write_f64::<LittleEndian>(point.z_velocity)?;
+        self.0.write_f64::<LittleEndian>(point.roll)?;
+        self.0.write_f64::<LittleEndian>(point.pitch)?;
+        self.0.write_f64::<LittleEndian>(point.yaw)?;
+        self.0.write_f64::<LittleEndian>(point.wander_angle)?;
+        self.0.write_f64::<LittleEndian>(point.x_acceleration)?;
+        self.0.write_f64::<LittleEndian>(point.y_acceleration)?;
+        self.0.write_f64::<LittleEndian>(point.z_acceleration)?;
+        self.0.write_f64::<LittleEndian>(point.x_angular_rate)?;
+        self.0.write_f64::<LittleEndian>(point.y_angular_rate)?;
+        self.0.write_f64::<LittleEndian>(point.z_angular_rate)?;
+        Ok(())
+    }
+}
+
+impl Writer<BufWriter<File>> {
+    /// Creates a writer for the provided file path.
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<BufWriter<File>>, Error> {
+        File::create(path)
+            .map(|f| Writer(BufWriter::new(f)))
+            .map_err(|e| e.into())
     }
 }
 
