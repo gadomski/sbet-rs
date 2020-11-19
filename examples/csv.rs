@@ -29,7 +29,7 @@ fn main() -> Result<(), Error> {
         writeln!(
             output,
             "{},{},{},{},{},{}",
-            point.latitude, point.longitude, point.altitude, point.roll, point.pitch, point.yaw
+            point.latitude.to_degrees(), point.longitude.to_degrees(), point.altitude, point.roll.to_degrees(), point.pitch.to_degrees(), point.yaw.to_degrees()
         )
         .unwrap();
     }
