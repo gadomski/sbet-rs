@@ -54,7 +54,7 @@ fn main() -> Result<(), Error> {
         )
         .unwrap();
         if include_time {
-            write!(output, "{}", point.time).unwrap();
+            write!(output, ",{}", point.time).unwrap();
         }
         writeln!(output, "").unwrap();
     }
