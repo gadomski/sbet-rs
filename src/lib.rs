@@ -2,9 +2,12 @@
 
 #![deny(missing_docs)]
 
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::Path;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter, ErrorKind, Read, Write},
+    path::Path,
+};
 use thiserror::Error;
 
 const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
@@ -180,8 +183,6 @@ impl<R: Read> Reader<R> {
     /// let point = reader.read_one().unwrap().unwrap();
     /// ```
     pub fn read_one(&mut self) -> Result<Option<Point>> {
-        use byteorder::{LittleEndian, ReadBytesExt};
-        use std::io::ErrorKind;
         let time = match self.0.read_f64::<LittleEndian>() {
             Ok(time) => time,
             Err(err) => match err.kind() {
@@ -251,7 +252,6 @@ impl<W: Write> Writer<W> {
     /// writer.write_one(Point::default());
     /// ```
     pub fn write_one(&mut self, point: Point) -> Result<()> {
-        use byteorder::{LittleEndian, WriteBytesExt};
         self.0.write_f64::<LittleEndian>(point.time)?;
         self.0.write_f64::<LittleEndian>(point.latitude)?;
         self.0.write_f64::<LittleEndian>(point.longitude)?;
