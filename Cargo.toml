@@ -6,7 +6,7 @@ edition = "2021"
 description = "A micro-crate to read and write Smoothed Best Estimate of Trajectory (SBET) data"
 readme = "README.md"
 repository = "https://github.com/gadomski/sbet-rs"
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 keywords = ["sbet", "airborne", "trajectory"]
 categories = [
     "aerospace",
