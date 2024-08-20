@@ -8,9 +8,9 @@ edition = "2021"
 cli = ["dep:clap"]
 
 [dependencies]
-anyhow = "1"
 byteorder = "1"
 clap = { version = "4", features = ["derive"], optional = true }
+thiserror = "1"
 
 [[bin]]
 name = "sbet"

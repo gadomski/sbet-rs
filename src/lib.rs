@@ -2,12 +2,44 @@
 
 #![deny(missing_docs)]
 
-use anyhow::{anyhow, Error};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
+use thiserror::Error;
 
 const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
+
+/// Crate-specific error enum.
+#[derive(Debug, Error)]
+pub enum Error {
+    /// Extrapolation.
+    #[error("extrapolation, time {time} does not fall between {start_time} and {end_time}")]
+    Extrapolation {
+        /// The time that does not fall between start time and end time.
+        time: f64,
+
+        /// The start time.
+        start_time: f64,
+
+        /// The end time.
+        end_time: f64,
+    },
+
+    /// [std::io::Error]
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    /// There are no points to iterpolate.
+    #[error("no points to interpolate within")]
+    NoPoints,
+
+    /// There is only one point.
+    #[error("only points to interpolate within")]
+    OnePoint,
+}
+
+/// Crate-specific result type.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Estimate the number of SBET points in a file based on file size.
 ///
@@ -16,7 +48,7 @@ const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
 /// ```
 /// assert_eq!(sbet::estimate_number_of_points("data/2-points.sbet").unwrap(), 2);
 /// ```
-pub fn estimate_number_of_points<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
+pub fn estimate_number_of_points<P: AsRef<Path>>(path: P) -> Result<u64> {
     let metadata = std::fs::metadata(path)?;
     Ok(metadata.len() / SIZE_OF_SBET_POINT_IN_BYTES)
 }
@@ -45,26 +77,19 @@ pub fn estimate_number_of_points<P: AsRef<Path>>(path: P) -> Result<u64, Error> 
 /// let interpolated_point = sbet::interpolate(&points, 151631.004);
 /// ```
 ///
-pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
+pub fn interpolate(points: &[Point], time: f64) -> Result<Point> {
     if points.is_empty() {
-        return Err(anyhow!("no points"));
+        return Err(Error::NoPoints);
     }
     if points.len() == 1 {
-        return Err(anyhow!("only one point"));
+        return Err(Error::OnePoint);
     }
-    if points[0].time > time {
-        return Err(anyhow!(
-            "extrapolation: {} is before first point time of {}",
+    if points[0].time > time || points.last().unwrap().time < time {
+        return Err(Error::Extrapolation {
             time,
-            points[0].time
-        ));
-    }
-    if points.last().unwrap().time < time {
-        return Err(anyhow!(
-            "extrapolation: {} is after last point time of {}",
-            time,
-            points.last().unwrap().time
-        ));
+            start_time: points[0].time,
+            end_time: points.last().unwrap().time,
+        });
     }
     for (before, after) in points.iter().zip(points.iter().skip(1)) {
         if before.time <= time && after.time >= time {
@@ -154,7 +179,7 @@ impl<R: Read> Reader<R> {
     /// let mut reader = Reader::from_path("data/2-points.sbet").unwrap();
     /// let point = reader.read_one().unwrap().unwrap();
     /// ```
-    pub fn read_one(&mut self) -> Result<Option<Point>, Error> {
+    pub fn read_one(&mut self) -> Result<Option<Point>> {
         use byteorder::{LittleEndian, ReadBytesExt};
         use std::io::ErrorKind;
         let time = match self.0.read_f64::<LittleEndian>() {
@@ -196,7 +221,7 @@ impl Reader<BufReader<File>> {
     ///
     /// let reader = Reader::from_path("data/2-points.sbet").unwrap();
     /// ```
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Reader<BufReader<File>>, Error> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Reader<BufReader<File>>> {
         File::open(path)
             .map(|f| Reader(BufReader::new(f)))
             .map_err(|e| e.into())
@@ -204,9 +229,9 @@ impl Reader<BufReader<File>> {
 }
 
 impl<R: Read> Iterator for Reader<R> {
-    type Item = Result<Point, Error>;
+    type Item = Result<Point>;
 
-    fn next(&mut self) -> Option<Result<Point, Error>> {
+    fn next(&mut self) -> Option<Result<Point>> {
         match self.read_one() {
             Ok(option) => option.map(Ok),
             Err(err) => Some(Err(err)),
@@ -225,7 +250,7 @@ impl<W: Write> Writer<W> {
     /// let mut writer = Writer(std::io::stdout());
     /// writer.write_one(Point::default());
     /// ```
-    pub fn write_one(&mut self, point: Point) -> Result<(), Error> {
+    pub fn write_one(&mut self, point: Point) -> Result<()> {
         use byteorder::{LittleEndian, WriteBytesExt};
         self.0.write_f64::<LittleEndian>(point.time)?;
         self.0.write_f64::<LittleEndian>(point.latitude)?;
@@ -258,7 +283,7 @@ impl Writer<BufWriter<File>> {
     ///
     /// let writer = Writer::from_path("outfile.sbet").unwrap();
     /// ```
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<BufWriter<File>>, Error> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<BufWriter<File>>> {
         File::create(path)
             .map(|f| Writer(BufWriter::new(f)))
             .map_err(|e| e.into())
@@ -270,15 +295,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn read() -> Result<(), Error> {
-        let reader = Reader::from_path("data/2-points.sbet")?;
-        let points = reader.collect::<Vec<Result<Point, Error>>>();
+    fn read() {
+        let reader = Reader::from_path("data/2-points.sbet").unwrap();
+        let points = reader.collect::<Result<Vec<Point>>>().unwrap();
         assert_eq!(2, points.len());
-        Ok(())
     }
 
     #[test]
-    fn interpolate() -> Result<(), Error> {
+    fn interpolate() {
         let first = Point {
             time: 1.,
             latitude: 1.,
@@ -317,7 +341,7 @@ mod tests {
             y_angular_rate: 2.,
             z_angular_rate: 2.,
         };
-        let interpolated = super::interpolate(&[first, second], 1.5)?;
+        let interpolated = super::interpolate(&[first, second], 1.5).unwrap();
         assert_eq!(
             interpolated,
             Point {
@@ -340,7 +364,6 @@ mod tests {
                 z_angular_rate: 1.5,
             }
         );
-        Ok(())
     }
 
     #[test]
