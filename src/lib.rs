@@ -1,3 +1,7 @@
+//! Micro-crate to read and write Smoothed Best Estimate of Trajectory (SBET) data.
+
+#![deny(missing_docs)]
+
 use anyhow::{anyhow, Error};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -5,11 +9,42 @@ use std::path::Path;
 
 const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
 
+/// Estimate the number of SBET points in a file based on file size.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(sbet::estimate_number_of_points("data/2-points.sbet").unwrap(), 2);
+/// ```
 pub fn estimate_number_of_points<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     let metadata = std::fs::metadata(path)?;
     Ok(metadata.len() / SIZE_OF_SBET_POINT_IN_BYTES)
 }
 
+/// Interpolate a sorted slice of points at a point in time.
+///
+/// This is pretty inefficient because it scans from the start.
+///
+/// TODO make this better by building an index first.
+///
+/// # Errors
+///
+/// Returns an error if:
+///
+/// - The time is before the first point
+/// - The time is after the last point
+/// - The points slice is empty or only has one point
+///
+/// # Examples
+///
+/// ```
+/// use sbet::Reader;
+///
+/// let reader = Reader::from_path("data/2-points.sbet").unwrap();
+/// let points = reader.into_iter().collect::<Result<Vec<_>, _>>().unwrap();
+/// let interpolated_point = sbet::interpolate(&points, 151631.004);
+/// ```
+///
 pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
     if points.is_empty() {
         return Err(anyhow!("no points"));
@@ -67,6 +102,7 @@ pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
 
 /// Smoothed Best Estimate of Trajectory (SBET) point.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[allow(missing_docs)]
 pub struct Point {
     pub time: f64,
     pub latitude: f64,
@@ -88,13 +124,36 @@ pub struct Point {
 }
 
 /// Use this structure to read sbet data from a source.
+///
+/// # Examples
+///
+/// [Reader] implements [Iterator]:
+///
+/// ```
+/// use sbet::Reader;
+///
+/// let reader = Reader::from_path("data/2-points.sbet").unwrap();
+/// for result in reader {
+///     let point = result.unwrap();
+///     dbg!(point);
+/// }
+/// ```
 pub struct Reader<R: Read>(pub R);
 
-/// Use this structure to write sbet data to a sink.
+/// Use this structure to write sbet data.
 pub struct Writer<W: Write>(pub W);
 
 impl<R: Read> Reader<R> {
-    /// Reads one point from the reader.
+    /// Reads one point.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sbet::Reader;
+    ///
+    /// let mut reader = Reader::from_path("data/2-points.sbet").unwrap();
+    /// let point = reader.read_one().unwrap().unwrap();
+    /// ```
     pub fn read_one(&mut self) -> Result<Option<Point>, Error> {
         use byteorder::{LittleEndian, ReadBytesExt};
         use std::io::ErrorKind;
@@ -128,7 +187,15 @@ impl<R: Read> Reader<R> {
 }
 
 impl Reader<BufReader<File>> {
-    /// Create a reader for the provided file path.
+    /// Creates a reader for the file at the path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sbet::Reader;
+    ///
+    /// let reader = Reader::from_path("data/2-points.sbet").unwrap();
+    /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Reader<BufReader<File>>, Error> {
         File::open(path)
             .map(|f| Reader(BufReader::new(f)))
@@ -149,6 +216,15 @@ impl<R: Read> Iterator for Reader<R> {
 
 impl<W: Write> Writer<W> {
     /// Writes one point to the writer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sbet::{Writer, Point};
+    ///
+    /// let mut writer = Writer(std::io::stdout());
+    /// writer.write_one(Point::default());
+    /// ```
     pub fn write_one(&mut self, point: Point) -> Result<(), Error> {
         use byteorder::{LittleEndian, WriteBytesExt};
         self.0.write_f64::<LittleEndian>(point.time)?;
@@ -173,7 +249,15 @@ impl<W: Write> Writer<W> {
 }
 
 impl Writer<BufWriter<File>> {
-    /// Creates a writer for the provided file path.
+    /// Creates a writer for the file at the path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use sbet::Writer;
+    ///
+    /// let writer = Writer::from_path("outfile.sbet").unwrap();
+    /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<BufWriter<File>>, Error> {
         File::create(path)
             .map(|f| Writer(BufWriter::new(f)))
