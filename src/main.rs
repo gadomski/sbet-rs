@@ -13,6 +13,7 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Convert an SBET file to its CSV representation.
     ToCsv {
         /// The input file path.
         ///
@@ -32,6 +33,8 @@ enum Command {
         #[arg(short, long)]
         include_time: bool,
     },
+
+    /// Filter an SBET file by a start and end time.
     Filter {
         /// The input file path.
         ///
@@ -44,11 +47,11 @@ enum Command {
         outfile: Option<String>,
 
         /// The start time.
-        #[arg(short, long, default_value = "-inf")]
+        #[arg(long, default_value = "-inf")]
         start_time: f64,
 
         /// The stop time.
-        #[arg(short, long, default_value = "+inf")]
+        #[arg(long, default_value = "+inf")]
         stop_time: f64,
     },
 }
