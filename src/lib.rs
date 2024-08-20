@@ -1,11 +1,7 @@
-#[macro_use]
-extern crate anyhow;
-
+use anyhow::{anyhow, Error};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
-
-use anyhow::Error;
 
 const SIZE_OF_SBET_POINT_IN_BYTES: u64 = 112;
 
@@ -39,7 +35,7 @@ pub fn interpolate(points: &[Point], time: f64) -> Result<Point, Error> {
         if before.time <= time && after.time >= time {
             let factor = (time - before.time) / (after.time - before.time);
             return Ok(Point {
-                time: time,
+                time,
                 latitude: before.latitude + factor * (after.latitude - before.latitude),
                 longitude: before.longitude + factor * (after.longitude - before.longitude),
                 altitude: before.altitude + factor * (after.altitude - before.altitude),
@@ -145,10 +141,7 @@ impl<R: Read> Iterator for Reader<R> {
 
     fn next(&mut self) -> Option<Result<Point, Error>> {
         match self.read_one() {
-            Ok(option) => match option {
-                Some(point) => Some(Ok(point)),
-                None => None,
-            },
+            Ok(option) => option.map(Ok),
             Err(err) => Some(Err(err)),
         }
     }
