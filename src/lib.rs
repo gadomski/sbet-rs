@@ -92,10 +92,10 @@ pub struct Point {
 }
 
 /// Use this structure to read sbet data from a source.
-pub struct Reader<R: Read>(R);
+pub struct Reader<R: Read>(pub R);
 
 /// Use this structure to write sbet data to a sink.
-pub struct Writer<W: Write>(W);
+pub struct Writer<W: Write>(pub W);
 
 impl<R: Read> Reader<R> {
     /// Reads one point from the reader.

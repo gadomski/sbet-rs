@@ -4,9 +4,16 @@ version = "0.1.0"
 authors = ["Pete Gadomski <pete.gadomski@gmail.com>"]
 edition = "2018"
 
+[features]
+cli = ["dep:clap"]
+
 [dependencies]
 anyhow = "1"
 byteorder = "1"
+clap = { version = "4", features = ["derive"], optional = true }
 
-[dev-dependencies]
-clap = "2"
+[[bin]]
+name = "sbet"
+required-features = ["cli"]
+test = false
+doc = false
